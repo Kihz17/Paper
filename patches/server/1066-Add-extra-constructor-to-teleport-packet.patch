@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kihz17 <mitchdawdy@gmail.com>
+Date: Thu, 10 Oct 2024 05:04:51 -0700
+Subject: [PATCH] Add extra constructor to teleport packet
+
+
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundTeleportEntityPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundTeleportEntityPacket.java
+index 04adac916a0be711fb3176756bbd009cd936692d..7b04a599932e828bdc759ae24cd1cd4b2edf0c2d 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundTeleportEntityPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundTeleportEntityPacket.java
+@@ -30,6 +30,16 @@ public class ClientboundTeleportEntityPacket implements Packet<ClientGamePacketL
+         this.onGround = entity.onGround();
+     }
+ 
++    public ClientboundTeleportEntityPacket(int id, double x, double y, double z, byte yRot, byte xRot, boolean onGround) {
++        this.id = id;
++        this.x = x;
++        this.y = y;
++        this.z = z;
++        this.yRot = yRot;
++        this.xRot = xRot;
++        this.onGround = onGround;
++    }
++
+     private ClientboundTeleportEntityPacket(FriendlyByteBuf buf) {
+         this.id = buf.readVarInt();
+         this.x = buf.readDouble();

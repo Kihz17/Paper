@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kihz17 <mitchdawdy@gmail.com>
+Date: Wed, 26 Feb 2025 16:17:11 -0800
+Subject: [PATCH] Expose more data
+
+
+diff --git a/src/main/java/net/minecraft/server/network/ServerConnectionListener.java b/src/main/java/net/minecraft/server/network/ServerConnectionListener.java
+index 3a9e25b436f366fffe08c3b0c1fce11ed42ee646..38e4fefb0900905124d088a4ef2591acf2118b95 100644
+--- a/src/main/java/net/minecraft/server/network/ServerConnectionListener.java
++++ b/src/main/java/net/minecraft/server/network/ServerConnectionListener.java
+@@ -62,7 +62,7 @@ public class ServerConnectionListener {
+     private final List<ChannelFuture> channels = Collections.synchronizedList(Lists.newArrayList());
+     final List<Connection> connections = Collections.synchronizedList(Lists.newArrayList());
+     // Paper start - prevent blocking on adding a new connection while the server is ticking
+-    private final java.util.Queue<Connection> pending = new java.util.concurrent.ConcurrentLinkedQueue<>();
++    public final java.util.Queue<Connection> pending = new java.util.concurrent.ConcurrentLinkedQueue<>();
+     private static final boolean disableFlushConsolidation = Boolean.getBoolean("Paper.disableFlushConsolidate"); // Paper - Optimize network
+     private final void addPending() {
+         Connection connection;
+diff --git a/src/main/java/net/minecraft/world/entity/animal/horse/AbstractHorse.java b/src/main/java/net/minecraft/world/entity/animal/horse/AbstractHorse.java
+index 1f5ed236fb7c0c1b0181675747d25d233f534284..ad4973ff7c03b3711cd2826f665e50edfa289bc8 100644
+--- a/src/main/java/net/minecraft/world/entity/animal/horse/AbstractHorse.java
++++ b/src/main/java/net/minecraft/world/entity/animal/horse/AbstractHorse.java
+@@ -122,13 +122,13 @@ public abstract class AbstractHorse extends Animal implements ContainerListener,
+         return entityliving instanceof AbstractHorse && ((AbstractHorse) entityliving).isBred();
+     };
+     private static final TargetingConditions MOMMY_TARGETING = TargetingConditions.forNonCombat().range(16.0D).ignoreLineOfSight().selector(AbstractHorse.PARENT_HORSE_SELECTOR);
+-    private static final EntityDataAccessor<Byte> DATA_ID_FLAGS = SynchedEntityData.defineId(AbstractHorse.class, EntityDataSerializers.BYTE);
+-    private static final int FLAG_TAME = 2;
+-    private static final int FLAG_SADDLE = 4;
+-    private static final int FLAG_BRED = 8;
+-    private static final int FLAG_EATING = 16;
+-    private static final int FLAG_STANDING = 32;
+-    private static final int FLAG_OPEN_MOUTH = 64;
++    public static final EntityDataAccessor<Byte> DATA_ID_FLAGS = SynchedEntityData.defineId(AbstractHorse.class, EntityDataSerializers.BYTE);
++    public static final int FLAG_TAME = 2;
++    public static final int FLAG_SADDLE = 4;
++    public static final int FLAG_BRED = 8;
++    public static final int FLAG_EATING = 16;
++    public static final int FLAG_STANDING = 32;
++    public static final int FLAG_OPEN_MOUTH = 64;
+     public static final int INV_SLOT_SADDLE = 0;
+     public static final int INV_BASE_COUNT = 1;
+     private int eatingCounter;
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 89c8713d2c2206d1b0d8c0a392c9d13b3e736f0c..c793cd77406ff5ab5c25f47d177ea0b31a084b33 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -513,7 +513,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+     // Paper end
+ 
+     @Override
+-    public final EntityType getType() {
++    public EntityType getType() {
+         return this.entityType;
+     }
+ 
