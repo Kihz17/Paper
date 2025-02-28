@@ -1,0 +1,594 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kihz17 <mitchdawdy@gmail.com>
+Date: Wed, 26 Feb 2025 21:32:28 -0800
+Subject: [PATCH] fixup! paper File Patches
+
+
+diff --git a/net/minecraft/network/protocol/game/ClientboundSetObjectivePacket.java b/net/minecraft/network/protocol/game/ClientboundSetObjectivePacket.java
+index afbad83d246a3362e5915277e72abe8165c2581b..c67759a19d82671e2f7abb96aa8367e0fe871a36 100644
+--- a/net/minecraft/network/protocol/game/ClientboundSetObjectivePacket.java
++++ b/net/minecraft/network/protocol/game/ClientboundSetObjectivePacket.java
+@@ -34,6 +34,14 @@ public class ClientboundSetObjectivePacket implements Packet<ClientGamePacketLis
+         this.method = method;
+     }
+ 
++    public ClientboundSetObjectivePacket(String objectiveName, Component displayName, ObjectiveCriteria.RenderType renderType, int method, Optional<NumberFormat> numberFormat) {
++        this.objectiveName = objectiveName;
++        this.displayName = displayName;
++        this.renderType = renderType;
++        this.numberFormat = numberFormat;
++        this.method = method;
++    }
++
+     private ClientboundSetObjectivePacket(RegistryFriendlyByteBuf buffer) {
+         this.objectiveName = buffer.readUtf();
+         this.method = buffer.readByte();
+diff --git a/net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java b/net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java
+index 97c18ca8d57edc08574f61f21723806ca155345c..34bc75a12ef490a28c494fd415766eb455519d0d 100644
+--- a/net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java
++++ b/net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java
+@@ -35,7 +35,7 @@ public class ClientboundSetPlayerTeamPacket implements Packet<ClientGamePacketLi
+         return new ClientboundSetPlayerTeamPacket(team.getName(), operation == ClientboundSetPlayerTeamPacket.Action.ADD ? 3 : 4, Optional.empty(), players);
+     }
+     // Paper end - Multiple Entries with Scoreboards
+-    private ClientboundSetPlayerTeamPacket(String name, int method, Optional<ClientboundSetPlayerTeamPacket.Parameters> parameters, Collection<String> players) {
++    public ClientboundSetPlayerTeamPacket(String name, int method, Optional<ClientboundSetPlayerTeamPacket.Parameters> parameters, Collection<String> players) {
+         this.name = name;
+         this.method = method;
+         this.parameters = parameters;
+diff --git a/net/minecraft/network/syncher/SynchedEntityData.java b/net/minecraft/network/syncher/SynchedEntityData.java
+index 3d90f9f1ac1bd281edf6bb0f93ea821657d5bd2f..d15d6e114819eeb78cc31f7d4214e8635ed4ecb1 100644
+--- a/net/minecraft/network/syncher/SynchedEntityData.java
++++ b/net/minecraft/network/syncher/SynchedEntityData.java
+@@ -248,6 +248,10 @@ public class SynchedEntityData {
+             }
+         }
+ 
++        public DataValue<T> copy() {
++            return new DataValue<>(this.id, this.serializer, this.value);
++        }
++
+         public static SynchedEntityData.DataValue<?> read(RegistryFriendlyByteBuf buffer, int id) {
+             int varInt = buffer.readVarInt();
+             EntityDataSerializer<?> serializer = EntityDataSerializers.getSerializer(varInt);
+diff --git a/net/minecraft/server/level/ServerEntity.java b/net/minecraft/server/level/ServerEntity.java
+index 0fb253aa55a24b56b17f524b3261c5b75c7d7e59..fd4dd09a92e43e891698d1a6eca125801b5396e8 100644
+--- a/net/minecraft/server/level/ServerEntity.java
++++ b/net/minecraft/server/level/ServerEntity.java
+@@ -46,6 +46,7 @@ import net.minecraft.world.level.saveddata.maps.MapId;
+ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
+ import net.minecraft.world.phys.Vec3;
+ import org.slf4j.Logger;
++import com.destroystokyo.paper.events.*;
+ 
+ public class ServerEntity {
+     private static final Logger LOGGER = LogUtils.getLogger();
+@@ -64,7 +65,7 @@ public class ServerEntity {
+     private byte lastSentYHeadRot;
+     private Vec3 lastSentMovement;
+     private int tickCount;
+-    private int teleportDelay;
++    public int teleportDelay;
+     private List<Entity> lastPassengers = com.google.common.collect.ImmutableList.of(); // Paper - optimize passenger checks
+     private boolean wasRiding;
+     private boolean wasOnGround;
+@@ -73,6 +74,11 @@ public class ServerEntity {
+ 
+     // CraftBukkit start
+     private final Set<net.minecraft.server.network.ServerPlayerConnection> trackedPlayers;
++
++    public static int losCheckInterval = 20;
++    public static double losYThreshold = 15;
++    public static double losHorizontalThreshold = 20;
++
+     public ServerEntity(ServerLevel level, Entity entity, int updateInterval, boolean trackDelta, Consumer<Packet<?>> broadcast, final Set<net.minecraft.server.network.ServerPlayerConnection> trackedPlayers) {
+         this.trackedPlayers = trackedPlayers;
+     // CraftBukkit end
+@@ -138,6 +144,19 @@ public class ServerEntity {
+             this.sendDirtyEntityData();
+         }
+ 
++        // Check if each tracked entity can view this server entity
++        if(this.tickCount % losCheckInterval == 0) {
++            for(net.minecraft.server.network.ServerPlayerConnection playerConn : trackedPlayers) {
++                ServerPlayer player = playerConn.getPlayer();
++
++                if(hasLOS(player)) { // We have LOS
++                    player.addEntityInLOS(this.entity.getUUID());
++                } else { // Not in LOS
++                    player.removeEntityInLOS(this.entity.getUUID());
++                }
++            }
++        }
++
+         if (this.forceStateResync || this.tickCount % this.updateInterval == 0 || this.entity.hasImpulse || this.entity.getEntityData().isDirty()) { // Paper - fix desync when a player is added to the tracker
+             byte b = Mth.packDegrees(this.entity.getYRot());
+             byte b1 = Mth.packDegrees(this.entity.getXRot());
+@@ -216,6 +235,7 @@ public class ServerEntity {
+ 
+                 if (packet != null) {
+                     this.broadcast.accept(packet);
++                    this.entity.level().getCraftServer().getPluginManager().callEvent(new BroadcastEntityMovePacketEvent(this.entity.getBukkitEntity(), packet));
+                 }
+ 
+                 this.sendDirtyEntityData();
+@@ -303,15 +323,29 @@ public class ServerEntity {
+     }
+ 
+     public void removePairing(ServerPlayer player) {
++        PlayerPreTrackEntityEvent preEvt = new PlayerPreTrackEntityEvent(player.getBukkitEntity(), this.entity.getBukkitEntity(), PlayerPreTrackEntityEvent.TrackType.STOP);
++        level.getCraftServer().getPluginManager().callEvent(preEvt);
++
+         this.entity.stopSeenByPlayer(player);
++        player.removeEntityInLOS(this.entity.getUUID());
+         player.connection.send(new ClientboundRemoveEntitiesPacket(this.entity.getId()));
++
++        PlayerTrackEntityEvent evt = new PlayerTrackEntityEvent(player.getBukkitEntity(), this.entity.getBukkitEntity(), PlayerTrackEntityEvent.TrackType.STOP);
++        level.getCraftServer().getPluginManager().callEvent(evt);
+     }
+ 
+     public void addPairing(ServerPlayer player) {
+         List<Packet<? super ClientGamePacketListener>> list = new ArrayList<>();
++
++        PlayerPreTrackEntityEvent preEvt = new PlayerPreTrackEntityEvent(player.getBukkitEntity(), this.entity.getBukkitEntity(), PlayerPreTrackEntityEvent.TrackType.START);
++        level.getCraftServer().getPluginManager().callEvent(preEvt);
++
+         this.sendPairingData(player, list::add);
+         player.connection.send(new ClientboundBundlePacket(list));
+         this.entity.startSeenByPlayer(player);
++
++        PlayerTrackEntityEvent evt = new PlayerTrackEntityEvent(player.getBukkitEntity(), this.entity.getBukkitEntity(), PlayerTrackEntityEvent.TrackType.START);
++        level.getCraftServer().getPluginManager().callEvent(evt);
+     }
+ 
+     public void sendPairingData(ServerPlayer player, Consumer<Packet<ClientGamePacketListener>> consumer) {
+@@ -322,10 +356,26 @@ public class ServerEntity {
+             // CraftBukkit end
+         }
+ 
+-        Packet<ClientGamePacketListener> addEntityPacket = this.entity.getAddEntityPacket(this);
+-        consumer.accept(addEntityPacket);
++        Packet<ClientGamePacketListener> packet = this.entity.getAddEntityPacket(this);
++
++        if(packet instanceof net.minecraft.network.protocol.game.ClientboundAddEntityPacket addEntityPacket && addEntityPacket.getType() == net.minecraft.world.entity.EntityType.PLAYER) {
++            AddPlayerPacketEvent event = new AddPlayerPacketEvent(player.getBukkitEntity(), addEntityPacket);
++            level.getCraftServer().getPluginManager().callEvent(event);
++            if(!event.isCancelled())
++                consumer.accept(packet);
++        } else {
++            consumer.accept(packet);
++        }
++
+         if (this.trackedDataValues != null) {
+-            consumer.accept(new ClientboundSetEntityDataPacket(this.entity.getId(), this.trackedDataValues));
++            List<SynchedEntityData.DataValue<?>> clonedList = this.trackedDataValues.stream()
++                .map(SynchedEntityData.DataValue::copy)
++                .collect(java.util.stream.Collectors.toList());
++
++            SendEntityDataPacketEvent event = new SendEntityDataPacketEvent(player.getBukkitEntity(), entity.getBukkitEntity(), clonedList);
++            level.getCraftServer().getPluginManager().callEvent(event);
++            if(!event.isCancelled())
++                consumer.accept(new ClientboundSetEntityDataPacket(this.entity.getId(), clonedList));
+         }
+ 
+         boolean flag = this.trackDelta;
+@@ -402,9 +452,28 @@ public class ServerEntity {
+     private void sendDirtyEntityData() {
+         SynchedEntityData entityData = this.entity.getEntityData();
+         List<SynchedEntityData.DataValue<?>> list = entityData.packDirty();
++
+         if (list != null) {
+             this.trackedDataValues = entityData.getNonDefaultValues();
+-            this.broadcastAndSend(new ClientboundSetEntityDataPacket(this.entity.getId(), list));
++
++            for(net.minecraft.server.network.ServerPlayerConnection connection : trackedPlayers) {
++                List<SynchedEntityData.DataValue<?>> clonedList = list.stream()
++                    .map(SynchedEntityData.DataValue::copy)
++                    .collect(java.util.stream.Collectors.toList());
++
++                SendEntityDataPacketEvent event = new SendEntityDataPacketEvent(connection.getPlayer().getBukkitEntity(), entity.getBukkitEntity(), clonedList);
++                level.getCraftServer().getPluginManager().callEvent(event);
++                if(!event.isCancelled())
++                    connection.send(new ClientboundSetEntityDataPacket(entity.getId(), clonedList));
++            }
++
++            // We are a player, send to ourselves
++            if(entity instanceof ServerPlayer player) {
++                SendEntityDataPacketEvent event = new SendEntityDataPacketEvent(player.getBukkitEntity(), entity.getBukkitEntity(), list);
++                level.getCraftServer().getPluginManager().callEvent(event);
++                if(!event.isCancelled())
++                    player.connection.send(new ClientboundSetEntityDataPacket(entity.getId(), list));
++            }
+         }
+ 
+         if (this.entity instanceof LivingEntity) {
+@@ -428,4 +497,37 @@ public class ServerEntity {
+             ((ServerPlayer)this.entity).connection.send(packet);
+         }
+     }
++
++    private boolean hasLOS(ServerPlayer player) {
++        // Get distance from the player to this entity
++        double x = player.getX() - this.entity.getX();
++        double y = player.getY() - this.entity.getY();
++        double z = player.getZ() - this.entity.getZ();
++        double yDistance = Math.sqrt(y * y);
++        double horizontalDistance = Math.sqrt((x * x) + (z * z));
++
++        if(yDistance <= losYThreshold && horizontalDistance <= losHorizontalThreshold) // We are close enough to them, just return true
++            return true;
++
++        Vec3 start = player.getEyePosition();
++        Vec3 end = this.entity.getEyePosition();
++
++        // Do dot product test
++        float yaw = player.getYHeadRot();
++        float pitch = player.getXRot();
++        double yDir = -Math.sin(Math.toRadians(pitch));
++        double xz = Math.cos(Math.toRadians(pitch));
++        double xDir = -xz * Math.sin(Math.toRadians(yaw));
++        double zDir = xz * Math.cos(Math.toRadians(yaw));
++
++        Vec3 playerDir = new Vec3(xDir, yDir, zDir).normalize();
++        Vec3 dirToEntity = end.subtract(start).normalize();
++        if(playerDir.dot(dirToEntity) <= 0.2D) // Player is looking away from the entity, don't bother doing ray casting checks
++            return false;
++
++        net.minecraft.world.level.ClipContext ray = new net.minecraft.world.level.ClipContext(start, end, net.minecraft.world.level.ClipContext.Block.OUTLINE, net.minecraft.world.level.ClipContext.Fluid.NONE, player);
++        net.minecraft.world.phys.BlockHitResult hitResult = player.level().clipIgnoreTransparent(ray);
++
++        return hitResult.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK;
++    }
+ }
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 57d432dc9e8d8e9a3e088e7c40b35178c30fe786..3df2a71ec66652f33ce1d45ec29b987efff9c5b1 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -177,6 +177,7 @@ import net.minecraft.world.scores.ScoreHolder;
+ import net.minecraft.world.scores.Team;
+ import net.minecraft.world.scores.criteria.ObjectiveCriteria;
+ import org.slf4j.Logger;
++import com.destroystokyo.paper.events.PlayerUpdateEntityLineOfSightEvent;
+ 
+ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patches.chunk_system.player.ChunkSystemServerPlayer { // Paper - rewrite chunk system
+     private static final Logger LOGGER = LogUtils.getLogger();
+@@ -394,6 +395,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     public @Nullable String clientBrandName = null; // Paper - Brand support
+     public org.bukkit.event.player.PlayerQuitEvent.QuitReason quitReason = null; // Paper - Add API for quit reason; there are a lot of changes to do if we change all methods leading to the event
+ 
++    public final Set<UUID> visibleEntities = new HashSet<>();
++    public final Set<UUID> ignoreLoSChecks = new HashSet<>();
++
+     // Paper start - rewrite chunk system
+     private ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.PlayerChunkLoaderData chunkLoader;
+     private final ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.ViewDistanceHolder viewDistanceHolder = new ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.ViewDistanceHolder();
+@@ -3078,4 +3082,22 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         return (org.bukkit.craftbukkit.entity.CraftPlayer) super.getBukkitEntity();
+     }
+     // CraftBukkit end
++
++    public void addEntityInLOS(UUID uuid) {
++        if(!visibleEntities.contains(uuid)) {
++            org.bukkit.entity.Entity craftEntity = this.level().getCraftServer().getEntity(uuid);
++            if(craftEntity != null) {
++                visibleEntities.add(uuid);
++                this.level().getCraftServer().getPluginManager().callEvent(new PlayerUpdateEntityLineOfSightEvent(getBukkitEntity(), craftEntity, true));
++            }
++        }
++    }
++
++    public void removeEntityInLOS(UUID uuid) {
++        if(visibleEntities.remove(uuid)) {
++            org.bukkit.entity.Entity craftEntity = this.level().getCraftServer().getEntity(uuid);
++            if(craftEntity != null)
++                this.level().getCraftServer().getPluginManager().callEvent(new PlayerUpdateEntityLineOfSightEvent(getBukkitEntity(), craftEntity, false));
++        }
++    }
+ }
+diff --git a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
+index e71c1a564e5d4ac43460f89879ff709ee685706f..a4febd3c175d152f1199cf74dffb8aea4954bbdf 100644
+--- a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
+@@ -122,6 +122,9 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+             int i = (int)(Util.getMillis() - this.keepAliveTime);
+             this.latency = (this.latency * 3 + i) / 4;
+             this.keepAlivePending = false;
++
++            // Call latency event
++            this.player.level().getCraftServer().getPluginManager().callEvent(new com.destroystokyo.paper.event.player.PlayerPingEvent(this.player.getBukkitEntity(), latency));
+         } else if (!this.isSingleplayerOwner()) {
+             this.disconnectAsync(TIMEOUT_DISCONNECTION_MESSAGE, org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - add proper async disconnect
+         }
+diff --git a/net/minecraft/server/network/ServerConnectionListener.java b/net/minecraft/server/network/ServerConnectionListener.java
+index bd07e6a5aa1883786d789ea71711a0c0c0a95c26..de2459bde8ba930a69512f2b352e231c1775b28d 100644
+--- a/net/minecraft/server/network/ServerConnectionListener.java
++++ b/net/minecraft/server/network/ServerConnectionListener.java
+@@ -65,7 +65,7 @@ public class ServerConnectionListener {
+     }
+ 
+     // Paper start - prevent blocking on adding a new connection while the server is ticking
+-    private final java.util.Queue<Connection> pending = new java.util.concurrent.ConcurrentLinkedQueue<>();
++    public final java.util.Queue<Connection> pending = new java.util.concurrent.ConcurrentLinkedQueue<>();
+     private static final boolean disableFlushConsolidation = Boolean.getBoolean("Paper.disableFlushConsolidate"); // Paper - Optimize network
+ 
+     private final void addPending() {
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 1b54cf07616a10d93e9336dbd299ba5f09678a28..9c616b844b183142485bcadfe19cc6ecbc21758a 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -134,6 +134,7 @@ import net.minecraft.world.scores.PlayerTeam;
+ import net.minecraft.world.scores.ScoreHolder;
+ import net.minecraft.world.scores.Team;
+ import org.slf4j.Logger;
++import com.destroystokyo.paper.events.SendEntityDataPacketEvent;
+ 
+ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess, ScoreHolder, ca.spottedleaf.moonrise.patches.chunk_system.entity.ChunkSystemEntity, ca.spottedleaf.moonrise.patches.entity_tracker.EntityTrackerEntity {  // Paper - rewrite chunk system // Paper - optimise entity tracker
+ 
+@@ -265,23 +266,23 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+     public int invulnerableTime;
+     protected boolean firstTick = true;
+     protected final SynchedEntityData entityData;
+-    protected static final EntityDataAccessor<Byte> DATA_SHARED_FLAGS_ID = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BYTE);
+-    protected static final int FLAG_ONFIRE = 0;
+-    private static final int FLAG_SHIFT_KEY_DOWN = 1;
+-    private static final int FLAG_SPRINTING = 3;
+-    private static final int FLAG_SWIMMING = 4;
++    public static final EntityDataAccessor<Byte> DATA_SHARED_FLAGS_ID = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BYTE);
++    public static final int FLAG_ONFIRE = 0;
++    public static final int FLAG_SHIFT_KEY_DOWN = 1;
++    public static final int FLAG_SPRINTING = 3;
++    public static final int FLAG_SWIMMING = 4;
+     public static final int FLAG_INVISIBLE = 5;
+-    protected static final int FLAG_GLOWING = 6;
+-    protected static final int FLAG_FALL_FLYING = 7;
+-    private static final EntityDataAccessor<Integer> DATA_AIR_SUPPLY_ID = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.INT);
+-    private static final EntityDataAccessor<Optional<Component>> DATA_CUSTOM_NAME = SynchedEntityData.defineId(
++    public static final int FLAG_GLOWING = 6;
++    public static final int FLAG_FALL_FLYING = 7;
++    public static final EntityDataAccessor<Integer> DATA_AIR_SUPPLY_ID = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.INT);
++    public static final EntityDataAccessor<Optional<Component>> DATA_CUSTOM_NAME = SynchedEntityData.defineId(
+         Entity.class, EntityDataSerializers.OPTIONAL_COMPONENT
+     );
+-    private static final EntityDataAccessor<Boolean> DATA_CUSTOM_NAME_VISIBLE = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
+-    private static final EntityDataAccessor<Boolean> DATA_SILENT = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
+-    private static final EntityDataAccessor<Boolean> DATA_NO_GRAVITY = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
+-    protected static final EntityDataAccessor<Pose> DATA_POSE = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.POSE);
+-    private static final EntityDataAccessor<Integer> DATA_TICKS_FROZEN = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.INT);
++    public static final EntityDataAccessor<Boolean> DATA_CUSTOM_NAME_VISIBLE = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
++    public static final EntityDataAccessor<Boolean> DATA_SILENT = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
++    public static final EntityDataAccessor<Boolean> DATA_NO_GRAVITY = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
++    public static final EntityDataAccessor<Pose> DATA_POSE = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.POSE);
++    public static final EntityDataAccessor<Integer> DATA_TICKS_FROZEN = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.INT);
+     private EntityInLevelCallback levelCallback = EntityInLevelCallback.NULL;
+     private final VecDeltaCodec packetPositionCodec = new VecDeltaCodec();
+     public boolean hasImpulse;
+@@ -643,7 +644,10 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+         List<SynchedEntityData.DataValue<?>> list = this.entityData.packAll(); // Paper - Update EVERYTHING not just not default
+ 
+         if (list != null && to.getBukkitEntity().canSee(this.getBukkitEntity())) { // Paper
+-            to.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket(this.getId(), list));
++            SendEntityDataPacketEvent event = new SendEntityDataPacketEvent(to.getBukkitEntity(), this.getBukkitEntity(), list);
++            level.getCraftServer().getPluginManager().callEvent(event);
++            if(!event.isCancelled())
++                to.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket(this.getId(), list));
+         }
+     }
+     // CraftBukkit end
+@@ -676,7 +680,10 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+             values.add(synchedValue.value());
+         }
+ 
+-        to.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket(this.id, values));
++        SendEntityDataPacketEvent event = new SendEntityDataPacketEvent(to.getBukkitEntity(), this.getBukkitEntity(), values);
++        level.getCraftServer().getPluginManager().callEvent(event);
++        if(!event.isCancelled())
++            to.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket(this.id, values));
+     }
+     // Paper end
+ 
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 4546aca8e2e144ec207653c713fc49f849908827..fba2abbad9e8d6756bd72381d9201bc841ed4798 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -187,19 +187,19 @@ public abstract class LivingEntity extends Entity implements Attackable {
+     protected static final int LIVING_ENTITY_FLAG_IS_USING = 1;
+     protected static final int LIVING_ENTITY_FLAG_OFF_HAND = 2;
+     public static final int LIVING_ENTITY_FLAG_SPIN_ATTACK = 4;
+-    protected static final EntityDataAccessor<Byte> DATA_LIVING_ENTITY_FLAGS = SynchedEntityData.defineId(LivingEntity.class, EntityDataSerializers.BYTE);
++    public static final EntityDataAccessor<Byte> DATA_LIVING_ENTITY_FLAGS = SynchedEntityData.defineId(LivingEntity.class, EntityDataSerializers.BYTE);
+     public static final EntityDataAccessor<Float> DATA_HEALTH_ID = SynchedEntityData.defineId(LivingEntity.class, EntityDataSerializers.FLOAT);
+-    private static final EntityDataAccessor<List<ParticleOptions>> DATA_EFFECT_PARTICLES = SynchedEntityData.defineId(
++    public static final EntityDataAccessor<List<ParticleOptions>> DATA_EFFECT_PARTICLES = SynchedEntityData.defineId(
+         LivingEntity.class, EntityDataSerializers.PARTICLES
+     );
+-    private static final EntityDataAccessor<Boolean> DATA_EFFECT_AMBIENCE_ID = SynchedEntityData.defineId(LivingEntity.class, EntityDataSerializers.BOOLEAN);
++    public static final EntityDataAccessor<Boolean> DATA_EFFECT_AMBIENCE_ID = SynchedEntityData.defineId(LivingEntity.class, EntityDataSerializers.BOOLEAN);
+     public static final EntityDataAccessor<Integer> DATA_ARROW_COUNT_ID = SynchedEntityData.defineId(LivingEntity.class, EntityDataSerializers.INT);
+-    private static final EntityDataAccessor<Integer> DATA_STINGER_COUNT_ID = SynchedEntityData.defineId(LivingEntity.class, EntityDataSerializers.INT);
+-    private static final EntityDataAccessor<Optional<BlockPos>> SLEEPING_POS_ID = SynchedEntityData.defineId(
++    public static final EntityDataAccessor<Integer> DATA_STINGER_COUNT_ID = SynchedEntityData.defineId(LivingEntity.class, EntityDataSerializers.INT);
++    public static final EntityDataAccessor<Optional<BlockPos>> SLEEPING_POS_ID = SynchedEntityData.defineId(
+         LivingEntity.class, EntityDataSerializers.OPTIONAL_BLOCK_POS
+     );
+     private static final int PARTICLE_FREQUENCY_WHEN_INVISIBLE = 15;
+-    protected static final EntityDimensions SLEEPING_DIMENSIONS = EntityDimensions.fixed(0.2F, 0.2F).withEyeHeight(0.2F);
++    public static final EntityDimensions SLEEPING_DIMENSIONS = EntityDimensions.fixed(0.2F, 0.2F).withEyeHeight(0.2F);
+     public static final float EXTRA_RENDER_CULLING_SIZE_WITH_BIG_HAT = 0.5F;
+     public static final float DEFAULT_BABY_SCALE = 0.5F;
+     public static final String ATTRIBUTES_FIELD = "attributes";
+diff --git a/net/minecraft/world/entity/animal/horse/AbstractHorse.java b/net/minecraft/world/entity/animal/horse/AbstractHorse.java
+index d52a8315f1e6876c26c732f4c4caa47bc6bebf6e..5213bdab74cc4af22d6b17de44fdf0c151c6493d 100644
+--- a/net/minecraft/world/entity/animal/horse/AbstractHorse.java
++++ b/net/minecraft/world/entity/animal/horse/AbstractHorse.java
+@@ -108,12 +108,12 @@ public abstract class AbstractHorse extends Animal implements ContainerListener,
+         .ignoreLineOfSight()
+         .selector(PARENT_HORSE_SELECTOR);
+     private static final EntityDataAccessor<Byte> DATA_ID_FLAGS = SynchedEntityData.defineId(AbstractHorse.class, EntityDataSerializers.BYTE);
+-    private static final int FLAG_TAME = 2;
+-    private static final int FLAG_SADDLE = 4;
+-    private static final int FLAG_BRED = 8;
+-    private static final int FLAG_EATING = 16;
+-    private static final int FLAG_STANDING = 32;
+-    private static final int FLAG_OPEN_MOUTH = 64;
++    public static final int FLAG_TAME = 2;
++    public static final int FLAG_SADDLE = 4;
++    public static final int FLAG_BRED = 8;
++    public static final int FLAG_EATING = 16;
++    public static final int FLAG_STANDING = 32;
++    public static final int FLAG_OPEN_MOUTH = 64;
+     public static final int INV_SLOT_SADDLE = 0;
+     public static final int INV_BASE_COUNT = 1;
+     public static final int INVENTORY_ROWS = 3;
+diff --git a/net/minecraft/world/entity/item/ItemEntity.java b/net/minecraft/world/entity/item/ItemEntity.java
+index 52a7ed0d991758bad0dcedcb7f97fb15ac6c6d04..5b363691cd64e7c267659c8d7db414d2ea52ec3e 100644
+--- a/net/minecraft/world/entity/item/ItemEntity.java
++++ b/net/minecraft/world/entity/item/ItemEntity.java
+@@ -33,12 +33,12 @@ import net.minecraft.world.level.portal.TeleportTransition;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class ItemEntity extends Entity implements TraceableEntity {
+-    private static final EntityDataAccessor<ItemStack> DATA_ITEM = SynchedEntityData.defineId(ItemEntity.class, EntityDataSerializers.ITEM_STACK);
+-    private static final float FLOAT_HEIGHT = 0.1F;
++    public static final EntityDataAccessor<ItemStack> DATA_ITEM = SynchedEntityData.defineId(ItemEntity.class, EntityDataSerializers.ITEM_STACK);
++    public static final float FLOAT_HEIGHT = 0.1F;
+     public static final float EYE_HEIGHT = 0.2125F;
+-    private static final int LIFETIME = 6000;
+-    private static final int INFINITE_PICKUP_DELAY = 32767;
+-    private static final int INFINITE_LIFETIME = -32768;
++    public static final int LIFETIME = 6000;
++    public static final int INFINITE_PICKUP_DELAY = 32767;
++    public static final int INFINITE_LIFETIME = -32768;
+     public int age;
+     public int pickupDelay;
+     public int health = 5;
+diff --git a/net/minecraft/world/entity/monster/Guardian.java b/net/minecraft/world/entity/monster/Guardian.java
+index c8e249b8f7ee8e9c075169ec988f5a0d459a3767..ea024e854ee48ddf2f313a3f59c0ddc758fcf01d 100644
+--- a/net/minecraft/world/entity/monster/Guardian.java
++++ b/net/minecraft/world/entity/monster/Guardian.java
+@@ -46,8 +46,8 @@ import net.minecraft.world.phys.Vec3;
+ 
+ public class Guardian extends Monster {
+     protected static final int ATTACK_TIME = 80;
+-    private static final EntityDataAccessor<Boolean> DATA_ID_MOVING = SynchedEntityData.defineId(Guardian.class, EntityDataSerializers.BOOLEAN);
+-    private static final EntityDataAccessor<Integer> DATA_ID_ATTACK_TARGET = SynchedEntityData.defineId(Guardian.class, EntityDataSerializers.INT);
++    public static final EntityDataAccessor<Boolean> DATA_ID_MOVING = SynchedEntityData.defineId(Guardian.class, EntityDataSerializers.BOOLEAN);
++    public static final EntityDataAccessor<Integer> DATA_ID_ATTACK_TARGET = SynchedEntityData.defineId(Guardian.class, EntityDataSerializers.INT);
+     private float clientSideTailAnimation;
+     private float clientSideTailAnimationO;
+     private float clientSideTailAnimationSpeed;
+diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
+index a0813aa9ebf5b32375b1bc9f294d8fc34cc867fe..5a12a5cfcb5d5087938c5e9403c515a744249df0 100644
+--- a/net/minecraft/world/entity/player/Player.java
++++ b/net/minecraft/world/entity/player/Player.java
+@@ -150,12 +150,12 @@ public abstract class Player extends LivingEntity {
+         )
+         .put(Pose.DYING, EntityDimensions.fixed(0.2F, 0.2F).withEyeHeight(1.62F))
+         .build();
+-    private static final EntityDataAccessor<Float> DATA_PLAYER_ABSORPTION_ID = SynchedEntityData.defineId(Player.class, EntityDataSerializers.FLOAT);
+-    private static final EntityDataAccessor<Integer> DATA_SCORE_ID = SynchedEntityData.defineId(Player.class, EntityDataSerializers.INT);
++    public static final EntityDataAccessor<Float> DATA_PLAYER_ABSORPTION_ID = SynchedEntityData.defineId(Player.class, EntityDataSerializers.FLOAT);
++    public static final EntityDataAccessor<Integer> DATA_SCORE_ID = SynchedEntityData.defineId(Player.class, EntityDataSerializers.INT);
+     public static final EntityDataAccessor<Byte> DATA_PLAYER_MODE_CUSTOMISATION = SynchedEntityData.defineId(Player.class, EntityDataSerializers.BYTE);
+-    protected static final EntityDataAccessor<Byte> DATA_PLAYER_MAIN_HAND = SynchedEntityData.defineId(Player.class, EntityDataSerializers.BYTE);
+-    protected static final EntityDataAccessor<CompoundTag> DATA_SHOULDER_LEFT = SynchedEntityData.defineId(Player.class, EntityDataSerializers.COMPOUND_TAG);
+-    protected static final EntityDataAccessor<CompoundTag> DATA_SHOULDER_RIGHT = SynchedEntityData.defineId(Player.class, EntityDataSerializers.COMPOUND_TAG);
++    public static final EntityDataAccessor<Byte> DATA_PLAYER_MAIN_HAND = SynchedEntityData.defineId(Player.class, EntityDataSerializers.BYTE);
++    public static final EntityDataAccessor<CompoundTag> DATA_SHOULDER_LEFT = SynchedEntityData.defineId(Player.class, EntityDataSerializers.COMPOUND_TAG);
++    public static final EntityDataAccessor<CompoundTag> DATA_SHOULDER_RIGHT = SynchedEntityData.defineId(Player.class, EntityDataSerializers.COMPOUND_TAG);
+     public static final int CLIENT_LOADED_TIMEOUT_TIME = 60;
+     private long timeEntitySatOnShoulder;
+     final Inventory inventory = new Inventory(this);
+diff --git a/net/minecraft/world/level/BlockGetter.java b/net/minecraft/world/level/BlockGetter.java
+index 91865d7e78e15cc643a65de03045b90a52d6ec2a..797e0ef7fef07bc395ae185b18c410d7edf0ab33 100644
+--- a/net/minecraft/world/level/BlockGetter.java
++++ b/net/minecraft/world/level/BlockGetter.java
+@@ -123,6 +123,17 @@ public interface BlockGetter extends LevelHeightAccessor {
+         });
+     }
+ 
++    default BlockHitResult clipIgnoreTransparent(ClipContext context) {
++        return (BlockHitResult) traverseBlocksIgnoreTransparent(context.getFrom(), context.getTo(), context, (raytrace1, blockposition) -> {
++            return this.clip(raytrace1, blockposition); // CraftBukkit - moved into separate method
++        }, (raytrace1) -> {
++            Vec3 vec3d = raytrace1.getFrom().subtract(raytrace1.getTo());
++
++            Vec3 rayTraceHitPos = raytrace1.getTo();
++            return BlockHitResult.miss(raytrace1.getTo(), Direction.getApproximateNearest(vec3d.x, vec3d.y, vec3d.z), new BlockPos((int)rayTraceHitPos.x(), (int)rayTraceHitPos.y(), (int)rayTraceHitPos.z()));
++        });
++    }
++
+     @Nullable
+     default BlockHitResult clipWithInteractionOverride(Vec3 startVec, Vec3 endVec, BlockPos pos, VoxelShape shape, BlockState state) {
+         BlockHitResult blockHitResult = shape.clip(startVec, endVec, pos);
+@@ -288,4 +299,71 @@ public interface BlockGetter extends LevelHeightAccessor {
+             }
+         }
+     }
++
++    private <T, C> T traverseBlocksIgnoreTransparent(Vec3 start, Vec3 end, C context, BiFunction<C, BlockPos, T> blockHitFactory, Function<C, T> missFactory) {
++        if (start.equals(end)) {
++            return missFactory.apply(context);
++        } else {
++            double d0 = Mth.lerp(-1.0E-7D, end.x, start.x);
++            double d1 = Mth.lerp(-1.0E-7D, end.y, start.y);
++            double d2 = Mth.lerp(-1.0E-7D, end.z, start.z);
++            double d3 = Mth.lerp(-1.0E-7D, start.x, end.x);
++            double d4 = Mth.lerp(-1.0E-7D, start.y, end.y);
++            double d5 = Mth.lerp(-1.0E-7D, start.z, end.z);
++            int i = Mth.floor(d3);
++            int j = Mth.floor(d4);
++            int k = Mth.floor(d5);
++
++            BlockPos.MutableBlockPos blockposition_mutableblockposition = new BlockPos.MutableBlockPos(i, j, k);
++            boolean isTransparent = this.getBlockState(blockposition_mutableblockposition.immutable()).useShapeForLightOcclusion();
++            T t0 = isTransparent ? null : blockHitFactory.apply(context, blockposition_mutableblockposition);
++
++            if (t0 != null) {
++                return t0;
++            } else {
++                double d6 = d0 - d3;
++                double d7 = d1 - d4;
++                double d8 = d2 - d5;
++                int l = Mth.sign(d6);
++                int i1 = Mth.sign(d7);
++                int j1 = Mth.sign(d8);
++                double d9 = l == 0 ? Double.MAX_VALUE : (double) l / d6;
++                double d10 = i1 == 0 ? Double.MAX_VALUE : (double) i1 / d7;
++                double d11 = j1 == 0 ? Double.MAX_VALUE : (double) j1 / d8;
++                double d12 = d9 * (l > 0 ? 1.0D - Mth.frac(d3) : Mth.frac(d3));
++                double d13 = d10 * (i1 > 0 ? 1.0D - Mth.frac(d4) : Mth.frac(d4));
++                double d14 = d11 * (j1 > 0 ? 1.0D - Mth.frac(d5) : Mth.frac(d5));
++
++                T object; // CraftBukkit - decompile error
++
++                do {
++                    if (d12 > 1.0D && d13 > 1.0D && d14 > 1.0D) {
++                        return missFactory.apply(context);
++                    }
++
++                    if (d12 < d13) {
++                        if (d12 < d14) {
++                            i += l;
++                            d12 += d9;
++                        } else {
++                            k += j1;
++                            d14 += d11;
++                        }
++                    } else if (d13 < d14) {
++                        j += i1;
++                        d13 += d10;
++                    } else {
++                        k += j1;
++                        d14 += d11;
++                    }
++
++                    BlockPos.MutableBlockPos mutableBlockPos = blockposition_mutableblockposition.set(i, j, k);
++                    isTransparent = this.getBlockState(mutableBlockPos.immutable()).useShapeForLightOcclusion();
++                    object = isTransparent ? null : blockHitFactory.apply(context, mutableBlockPos);
++                } while (object == null);
++
++                return object;
++            }
++        }
++    }
+ }

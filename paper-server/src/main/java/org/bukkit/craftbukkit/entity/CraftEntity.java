@@ -540,7 +540,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
     // Paper end
 
     @Override
-    public final EntityType getType() {
+    public EntityType getType() {
         return this.entityType;
     }
 

@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kihz17 <mitchdawdy@gmail.com>
+Date: Thu, 27 Feb 2025 17:24:31 -0800
+Subject: [PATCH] fixup! paper File Patches
+
+
+diff --git a/net/minecraft/world/entity/animal/horse/AbstractHorse.java b/net/minecraft/world/entity/animal/horse/AbstractHorse.java
+index 5213bdab74cc4af22d6b17de44fdf0c151c6493d..f834b65ffa36135ef56853198cc8ee0280f5777c 100644
+--- a/net/minecraft/world/entity/animal/horse/AbstractHorse.java
++++ b/net/minecraft/world/entity/animal/horse/AbstractHorse.java
+@@ -107,7 +107,7 @@ public abstract class AbstractHorse extends Animal implements ContainerListener,
+         .range(16.0)
+         .ignoreLineOfSight()
+         .selector(PARENT_HORSE_SELECTOR);
+-    private static final EntityDataAccessor<Byte> DATA_ID_FLAGS = SynchedEntityData.defineId(AbstractHorse.class, EntityDataSerializers.BYTE);
++    public static final EntityDataAccessor<Byte> DATA_ID_FLAGS = SynchedEntityData.defineId(AbstractHorse.class, EntityDataSerializers.BYTE);
+     public static final int FLAG_TAME = 2;
+     public static final int FLAG_SADDLE = 4;
+     public static final int FLAG_BRED = 8;

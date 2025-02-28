@@ -1,6 +1,25 @@
 --- a/net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java
 +++ b/net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java
-@@ -30,6 +_,11 @@
+@@ -18,18 +_,23 @@
+     public static final StreamCodec<RegistryFriendlyByteBuf, ClientboundSetPlayerTeamPacket> STREAM_CODEC = Packet.codec(
+         ClientboundSetPlayerTeamPacket::write, ClientboundSetPlayerTeamPacket::new
+     );
+-    private static final int METHOD_ADD = 0;
+-    private static final int METHOD_REMOVE = 1;
+-    private static final int METHOD_CHANGE = 2;
+-    private static final int METHOD_JOIN = 3;
+-    private static final int METHOD_LEAVE = 4;
+-    private static final int MAX_VISIBILITY_LENGTH = 40;
+-    private static final int MAX_COLLISION_LENGTH = 40;
++    public static final int METHOD_ADD = 0;
++    public static final int METHOD_REMOVE = 1;
++    public static final int METHOD_CHANGE = 2;
++    public static final int METHOD_JOIN = 3;
++    public static final int METHOD_LEAVE = 4;
++    public static final int MAX_VISIBILITY_LENGTH = 40;
++    public static final int MAX_COLLISION_LENGTH = 40;
+     private final int method;
+     private final String name;
      private final Collection<String> players;
      private final Optional<ClientboundSetPlayerTeamPacket.Parameters> parameters;
  
@@ -12,6 +31,23 @@
      private ClientboundSetPlayerTeamPacket(String name, int method, Optional<ClientboundSetPlayerTeamPacket.Parameters> parameters, Collection<String> players) {
          this.name = name;
          this.method = method;
+@@ -156,6 +_,16 @@
+             this.playerSuffix = team.getPlayerSuffix();
+         }
+ 
++        public Parameters(Component displayName, Component playerPrefix, Component playerSuffix, String nametagVisibility, String collisionRule, ChatFormatting color, int options) {
++            this.displayName = displayName;
++            this.options = options;
++            this.nametagVisibility = nametagVisibility;
++            this.collisionRule = collisionRule;
++            this.color = color;
++            this.playerPrefix = playerPrefix;
++            this.playerSuffix = playerSuffix;
++        }
++
+         public Parameters(RegistryFriendlyByteBuf buffer) {
+             this.displayName = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer);
+             this.options = buffer.readByte();
 @@ -198,7 +_,7 @@
              ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, this.displayName);
              buffer.writeByte(this.options);
