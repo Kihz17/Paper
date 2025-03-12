@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kihz17 <mitchdawdy@gmail.com>
+Date: Tue, 11 Mar 2025 17:44:44 -0700
+Subject: [PATCH] fixup! paper File Patches
+
+
+diff --git a/net/minecraft/network/syncher/SynchedEntityData.java b/net/minecraft/network/syncher/SynchedEntityData.java
+index c044a10a8e433f48fd80fd72a34903950ee9b434..bd507d48cab46e3d8eedc448f4225e312f5c69ec 100644
+--- a/net/minecraft/network/syncher/SynchedEntityData.java
++++ b/net/minecraft/network/syncher/SynchedEntityData.java
+@@ -145,7 +145,7 @@ public class SynchedEntityData {
+ 
+     public static class Builder {
+         private final SyncedDataHolder entity;
+-        private final SynchedEntityData.DataItem<?>[] itemsById;
++        private SynchedEntityData.DataItem<?>[] itemsById;
+ 
+         public Builder(SyncedDataHolder entity) {
+             this.entity = entity;
+@@ -178,6 +178,16 @@ public class SynchedEntityData {
+             }
+         }
+ 
++        public void resize(SynchedEntityData entityData) {
++            SynchedEntityData.DataItem<?>[] newArray = new SynchedEntityData.DataItem[SynchedEntityData.ID_REGISTRY.getCount(entityData.getClass())];
++
++            // Copy over the values to the new array
++            for(int i = 0; i < this.itemsById.length; i++)
++                newArray[i] = this.itemsById[i];
++
++            this.itemsById = newArray;
++        }
++
+         public SynchedEntityData build() {
+             for (int i = 0; i < this.itemsById.length; i++) {
+                 if (this.itemsById[i] == null) {

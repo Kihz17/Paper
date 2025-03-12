@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kihz17 <mitchdawdy@gmail.com>
+Date: Tue, 11 Mar 2025 17:51:10 -0700
+Subject: [PATCH] fixup! paper File Patches
+
+
+diff --git a/net/minecraft/network/syncher/SynchedEntityData.java b/net/minecraft/network/syncher/SynchedEntityData.java
+index bd507d48cab46e3d8eedc448f4225e312f5c69ec..f38bcff905df1e3f490528d8fed16162f71dd02d 100644
+--- a/net/minecraft/network/syncher/SynchedEntityData.java
++++ b/net/minecraft/network/syncher/SynchedEntityData.java
+@@ -178,8 +178,8 @@ public class SynchedEntityData {
+             }
+         }
+ 
+-        public void resize(SynchedEntityData entityData) {
+-            SynchedEntityData.DataItem<?>[] newArray = new SynchedEntityData.DataItem[SynchedEntityData.ID_REGISTRY.getCount(entityData.getClass())];
++        public void resize(Class<? extends net.minecraft.world.entity.Entity> clazz) {
++            SynchedEntityData.DataItem<?>[] newArray = new SynchedEntityData.DataItem[SynchedEntityData.ID_REGISTRY.getCount(clazz)];
+ 
+             // Copy over the values to the new array
+             for(int i = 0; i < this.itemsById.length; i++)
