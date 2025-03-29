@@ -1725,6 +1725,7 @@ public final class CraftServer implements Server {
 
         if (recipe.isPresent()) {
             RecipeHolder<CraftingRecipe> recipeCrafting = recipe.get();
+            inventoryCrafting.setCurrentRecipe(recipeCrafting);
             if (craftResult.setRecipeUsed(craftPlayer.getHandle(), recipeCrafting)) {
                 itemstack = recipeCrafting.value().assemble(inventoryCrafting.asCraftInput(), craftWorld.getHandle().registryAccess());
             }
@@ -1886,11 +1887,6 @@ public final class CraftServer implements Server {
     public void setSpawnRadius(int value) {
         this.configuration.set("settings.spawn-radius", value);
         this.saveConfig();
-    }
-
-    @Override
-    public boolean shouldSendChatPreviews() {
-        return false;
     }
 
     @Override
