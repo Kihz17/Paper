@@ -1,7 +1,9 @@
 package com.destroystokyo.paper.events;
 
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.HandlerList;
@@ -26,6 +28,10 @@ public class BroadcastEntityMovePacketEvent extends EntityEvent {
             this.packetType = PacketType.POS_ROT;
         } else if(packet instanceof ClientboundTeleportEntityPacket) {
             this.packetType = PacketType.TELEPORT;
+        } else if(packet instanceof ClientboundEntityPositionSyncPacket) {
+            this.packetType = PacketType.POS_SYNC;
+        } else if(packet instanceof ClientboundSetEntityMotionPacket) {
+            this.packetType = PacketType.MOTION;
         } else {
             this.packetType = PacketType.NONE;
         }
@@ -51,6 +57,14 @@ public class BroadcastEntityMovePacketEvent extends EntityEvent {
         return (ClientboundTeleportEntityPacket) packet;
     }
 
+    public ClientboundEntityPositionSyncPacket getAsSyncPacket() {
+        return (ClientboundEntityPositionSyncPacket) packet;
+    }
+
+    public ClientboundSetEntityMotionPacket getAsMotionPacket() {
+        return (ClientboundSetEntityMotionPacket) packet;
+    }
+
     public PacketType getPacketType() {
         return packetType;
     }
@@ -70,6 +84,8 @@ public class BroadcastEntityMovePacketEvent extends EntityEvent {
         POS,
         ROT,
         POS_ROT,
-        TELEPORT
+        TELEPORT,
+        POS_SYNC,
+        MOTION
     }
 }

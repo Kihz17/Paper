@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kihz17 <mitchdawdy@gmail.com>
+Date: Tue, 6 May 2025 23:13:10 -0700
+Subject: [PATCH] fixup! paper File Patches
+
+
+diff --git a/net/minecraft/server/level/ServerEntity.java b/net/minecraft/server/level/ServerEntity.java
+index fd4dd09a92e43e891698d1a6eca125801b5396e8..b5cac5436b90654f7358f7f492354b20e759273a 100644
+--- a/net/minecraft/server/level/ServerEntity.java
++++ b/net/minecraft/server/level/ServerEntity.java
+@@ -218,17 +218,23 @@ public class ServerEntity {
+                     if (d > 1.0E-7 || d > 0.0 && deltaMovement.lengthSqr() == 0.0) {
+                         this.lastSentMovement = deltaMovement;
+                         if (this.entity instanceof AbstractHurtingProjectile abstractHurtingProjectile) {
++
++                            ClientboundSetEntityMotionPacket p = new ClientboundSetEntityMotionPacket(this.entity.getId(), this.lastSentMovement);
+                             this.broadcast
+                                 .accept(
+                                     new ClientboundBundlePacket(
+                                         List.of(
+-                                            new ClientboundSetEntityMotionPacket(this.entity.getId(), this.lastSentMovement),
++                                            p,
+                                             new ClientboundProjectilePowerPacket(abstractHurtingProjectile.getId(), abstractHurtingProjectile.accelerationPower)
+                                         )
+                                     )
+                                 );
++
++                            this.entity.level().getCraftServer().getPluginManager().callEvent(new BroadcastEntityMovePacketEvent(this.entity.getBukkitEntity(), p));
+                         } else {
+-                            this.broadcast.accept(new ClientboundSetEntityMotionPacket(this.entity.getId(), this.lastSentMovement));
++                            ClientboundSetEntityMotionPacket p = new ClientboundSetEntityMotionPacket(this.entity.getId(), this.lastSentMovement);
++                            this.broadcast.accept(p);
++                            this.entity.level().getCraftServer().getPluginManager().callEvent(new BroadcastEntityMovePacketEvent(this.entity.getBukkitEntity(), p));
+                         }
+                     }
+                 }
+@@ -283,7 +289,11 @@ public class ServerEntity {
+             }
+             // CraftBukkit end
+             this.entity.hurtMarked = false;
+-            this.broadcastAndSend(new ClientboundSetEntityMotionPacket(this.entity));
++
++            ClientboundSetEntityMotionPacket packet = new ClientboundSetEntityMotionPacket(this.entity);
++            this.broadcastAndSend(packet);
++
++            this.entity.level().getCraftServer().getPluginManager().callEvent(new BroadcastEntityMovePacketEvent(this.entity.getBukkitEntity(), packet));
+         }
+     }
+ 

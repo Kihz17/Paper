@@ -241,7 +241,7 @@ index 0fb253aa55a24b56b17f524b3261c5b75c7d7e59..fd4dd09a92e43e891698d1a6eca12580
 +    }
  }
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 57d432dc9e8d8e9a3e088e7c40b35178c30fe786..3df2a71ec66652f33ce1d45ec29b987efff9c5b1 100644
+index 3de65c4025be91d938a350c884975cb6edc234d3..b15fef90962859f6fee855be561bb03b74034b68 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -177,6 +177,7 @@ import net.minecraft.world.scores.ScoreHolder;
@@ -252,7 +252,7 @@ index 57d432dc9e8d8e9a3e088e7c40b35178c30fe786..3df2a71ec66652f33ce1d45ec29b987e
  
  public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patches.chunk_system.player.ChunkSystemServerPlayer { // Paper - rewrite chunk system
      private static final Logger LOGGER = LogUtils.getLogger();
-@@ -394,6 +395,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -401,6 +402,9 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
      public @Nullable String clientBrandName = null; // Paper - Brand support
      public org.bukkit.event.player.PlayerQuitEvent.QuitReason quitReason = null; // Paper - Add API for quit reason; there are a lot of changes to do if we change all methods leading to the event
  
@@ -262,7 +262,7 @@ index 57d432dc9e8d8e9a3e088e7c40b35178c30fe786..3df2a71ec66652f33ce1d45ec29b987e
      // Paper start - rewrite chunk system
      private ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.PlayerChunkLoaderData chunkLoader;
      private final ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.ViewDistanceHolder viewDistanceHolder = new ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.ViewDistanceHolder();
-@@ -3078,4 +3082,22 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -3085,4 +3089,22 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          return (org.bukkit.craftbukkit.entity.CraftPlayer) super.getBukkitEntity();
      }
      // CraftBukkit end
@@ -286,7 +286,7 @@ index 57d432dc9e8d8e9a3e088e7c40b35178c30fe786..3df2a71ec66652f33ce1d45ec29b987e
 +    }
  }
 diff --git a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-index e71c1a564e5d4ac43460f89879ff709ee685706f..a4febd3c175d152f1199cf74dffb8aea4954bbdf 100644
+index af75f1ca60dc01045f27cb550ac9e3deacf1a1cf..7e8785e17ada8edf96f144abdea61340e30a4a26 100644
 --- a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 @@ -122,6 +122,9 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
@@ -313,7 +313,7 @@ index bd07e6a5aa1883786d789ea71711a0c0c0a95c26..de2459bde8ba930a69512f2b352e231c
  
      private final void addPending() {
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 1b54cf07616a10d93e9336dbd299ba5f09678a28..9c616b844b183142485bcadfe19cc6ecbc21758a 100644
+index b2b61203438bb1fad1ee807729781718d2467155..8f3df0b1cc9c7528ea2f827f49c3c9f0d02d936b 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -134,6 +134,7 @@ import net.minecraft.world.scores.PlayerTeam;
